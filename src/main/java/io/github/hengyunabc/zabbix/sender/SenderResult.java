@@ -2,21 +2,29 @@ package io.github.hengyunabc.zabbix.sender;
 
 import com.alibaba.fastjson.JSON;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  *
  * @author hengyunabc
  *
  */
 public class SenderResult {
+    @Getter @Setter
     int processed;
+    @Getter @Setter
     int failed;
+    @Getter @Setter
     int total;
 
+    @Getter @Setter
     float spentSeconds;
 
     /**
      * sometimes zabbix server will return "[]".
      */
+    @Getter @Setter
     boolean bReturnEmptyArray = false;
 
     /**
@@ -26,42 +34,6 @@ public class SenderResult {
      */
     public boolean success() {
         return !bReturnEmptyArray && processed == total;
-    }
-
-    public int getProcessed() {
-        return processed;
-    }
-
-    public void setProcessed(int processed) {
-        this.processed = processed;
-    }
-
-    public int getFailed() {
-        return failed;
-    }
-
-    public void setFailed(int failed) {
-        this.failed = failed;
-    }
-
-    public int getTotal() {
-        return total;
-    }
-
-    public void setTotal(int total) {
-        this.total = total;
-    }
-
-    public float getSpentSeconds() {
-        return spentSeconds;
-    }
-
-    public void setSpentSeconds(float spentSeconds) {
-        this.spentSeconds = spentSeconds;
-    }
-
-    public void setbReturnEmptyArray(boolean bReturnEmptyArray) {
-        this.bReturnEmptyArray = bReturnEmptyArray;
     }
 
     @Override

@@ -13,6 +13,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  *
  * @author hengyunabc
@@ -22,9 +25,13 @@ public class ZabbixSender {
     private static final Pattern PATTERN = Pattern.compile("[^0-9\\.]+");
     private final static Charset UTF8 = Charset.forName("UTF-8");
 
+    @Setter @Getter
     String host;
+    @Setter @Getter
     int port;
+    @Setter @Getter
     int connectTimeout = 3 * 1000;
+    @Setter @Getter
     int socketTimeout = 3 * 1000;
 
     public ZabbixSender(String host, int port) {
@@ -104,7 +111,7 @@ public class ZabbixSender {
 
             if (readCount < 13) {
                 // seems zabbix server return "[]"?
-                senderResult.setbReturnEmptyArray(true);
+                senderResult.setBReturnEmptyArray(true);
             }
 
             // header('ZBXD\1') + len + 0
@@ -135,37 +142,5 @@ public class ZabbixSender {
         }
 
         return senderResult;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public int getConnectTimeout() {
-        return connectTimeout;
-    }
-
-    public void setConnectTimeout(int connectTimeout) {
-        this.connectTimeout = connectTimeout;
-    }
-
-    public int getSocketTimeout() {
-        return socketTimeout;
-    }
-
-    public void setSocketTimeout(int socketTimeout) {
-        this.socketTimeout = socketTimeout;
     }
 }

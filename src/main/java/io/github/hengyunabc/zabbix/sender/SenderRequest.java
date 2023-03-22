@@ -4,6 +4,9 @@ import java.util.List;
 
 import com.alibaba.fastjson.JSON;
 
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  *
  * @author hengyunabc
@@ -12,13 +15,16 @@ import com.alibaba.fastjson.JSON;
 public class SenderRequest {
     static final byte header[] = { 'Z', 'B', 'X', 'D', '\1' };
 
+    @Getter @Setter
     String request = "sender data";
 
     /**
      * TimeUnit is SECONDS.
      */
+    @Getter @Setter
     long clock;
 
+    @Getter @Setter
     List<DataObject> data;
 
     public byte[] toBytes() {
@@ -40,37 +46,4 @@ public class SenderRequest {
         return result;
     }
 
-    public String getRequest() {
-        return request;
-    }
-
-    public void setRequest(String request) {
-        this.request = request;
-    }
-
-    /**
-     * TimeUnit is SECONDS.
-     *
-     * @return
-     */
-    public long getClock() {
-        return clock;
-    }
-
-    /**
-     * TimeUnit is SECONDS.
-     *
-     * @param clock
-     */
-    public void setClock(long clock) {
-        this.clock = clock;
-    }
-
-    public List<DataObject> getData() {
-        return data;
-    }
-
-    public void setData(List<DataObject> data) {
-        this.data = data;
-    }
 }
