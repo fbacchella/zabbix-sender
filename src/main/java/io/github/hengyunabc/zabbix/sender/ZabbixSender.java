@@ -9,6 +9,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -23,7 +25,7 @@ import lombok.Setter;
  */
 public class ZabbixSender {
     private static final Pattern PATTERN = Pattern.compile("[^0-9\\.]+");
-    private final static Charset UTF8 = Charset.forName("UTF-8");
+    private static final Charset UTF8 = StandardCharsets.UTF_8;
 
     @Setter @Getter
     String host;

@@ -6,7 +6,6 @@ import com.alibaba.fastjson.JSON;
 
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.Singular;
 
 /**
@@ -14,9 +13,9 @@ import lombok.Singular;
  * @author hengyunabc
  *
  */
-    static final byte header[] = { 'Z', 'B', 'X', 'D', '\1' };
 @Builder
 class SenderRequest {
+    private static final byte[] header = { 'Z', 'B', 'X', 'D', '\1' };
 
     @Getter @Builder.Default
     private final String request = "sender data";

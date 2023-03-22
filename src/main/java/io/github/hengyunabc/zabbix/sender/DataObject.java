@@ -2,10 +2,8 @@ package io.github.hengyunabc.zabbix.sender;
 
 import com.alibaba.fastjson.JSON;
 
-import lombok.Getter;
-import lombok.Setter;
 import lombok.Builder;
-import lombok.Builder.Default;
+import lombok.Getter;
 
 @Builder
 public class DataObject {
