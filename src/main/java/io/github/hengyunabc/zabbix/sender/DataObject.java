@@ -10,25 +10,14 @@ import lombok.Builder.Default;
 @Builder
 public class DataObject {
 
-    @Getter @Setter @Default
-    long clock = System.currentTimeMillis() / 1000;
-    @Getter @Setter
-    String host;
-    @Getter @Setter
-    String key;
-    @Getter @Setter
-    String value;
-
-    public DataObject() {
-
-    }
-
-    public DataObject(long clock, String host, String key, String value) {
-        this.clock = clock;
-        this.host = host;
-        this.key = key;
-        this.value = value;
-    }
+    @Getter @Builder.Default
+    private final long clock = System.currentTimeMillis() / 1000;
+    @Getter
+    private final String host;
+    @Getter
+    private final String key;
+    @Getter
+    private final String value;
 
     @Override
     public String toString(){

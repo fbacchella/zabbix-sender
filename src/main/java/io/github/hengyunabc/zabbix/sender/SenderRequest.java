@@ -4,28 +4,31 @@ import java.util.List;
 
 import com.alibaba.fastjson.JSON;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.Singular;
 
 /**
  *
  * @author hengyunabc
  *
  */
-public class SenderRequest {
     static final byte header[] = { 'Z', 'B', 'X', 'D', '\1' };
+@Builder
+class SenderRequest {
 
-    @Getter @Setter
-    String request = "sender data";
+    @Getter @Builder.Default
+    private final String request = "sender data";
 
     /**
      * TimeUnit is SECONDS.
      */
-    @Getter @Setter
-    long clock;
+    @Getter
+    private final long clock;
 
-    @Getter @Setter
-    List<DataObject> data;
+    @Getter @Singular("data")
+    private List<DataObject> data;
 
     public byte[] toBytes() {
         // https://www.zabbix.org/wiki/Docs/protocols/zabbix_sender/2.0

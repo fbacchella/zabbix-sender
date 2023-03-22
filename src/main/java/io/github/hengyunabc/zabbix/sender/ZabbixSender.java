@@ -74,8 +74,6 @@ public class ZabbixSender {
      * @throws IOException
      */
     public SenderResult send(List<DataObject> dataObjectList, long clock) throws IOException {
-        SenderResult senderResult = new SenderResult();
-
         Socket socket = null;
         InputStream inputStream = null;
         OutputStream outputStream = null;
@@ -88,10 +86,10 @@ public class ZabbixSender {
             inputStream = socket.getInputStream();
             outputStream = socket.getOutputStream();
 
-            SenderRequest senderRequest = new SenderRequest();
-            senderRequest.setData(dataObjectList);
-            senderRequest.setClock(clock);
-
+            SenderRequest senderRequest = SenderRequest.builder()
+                                                       .data(dataObjectList)
+                                                       .clock(clock)
+                                                       .build();
             outputStream.write(senderRequest.toBytes());
 
             outputStream.flush();
@@ -109,10 +107,8 @@ public class ZabbixSender {
                 readCount += read;
             }
 
-            if (readCount < 13) {
-                // seems zabbix server return "[]"?
-                senderResult.setBReturnEmptyArray(true);
-            }
+            SenderResult.SenderResultBuilder resultBuilder = SenderResult.builder();
+            resultBuilder.returnEmptyArray(readCount < 13);
 
             // header('ZBXD\1') + len + 0
             // 5 + 4 + 4
@@ -124,11 +120,11 @@ public class ZabbixSender {
             // after split: [, 1, 0, 1, 0.000053]
             String[] split = PATTERN.split(info);
 
-            senderResult.setProcessed(Integer.parseInt(split[1]));
-            senderResult.setFailed(Integer.parseInt(split[2]));
-            senderResult.setTotal(Integer.parseInt(split[3]));
-            senderResult.setSpentSeconds(Float.parseFloat(split[4]));
-
+            resultBuilder.processed(Integer.parseInt(split[1]));
+            resultBuilder.failed(Integer.parseInt(split[2]));
+            resultBuilder.total(Integer.parseInt(split[3]));
+            resultBuilder.spentSeconds(Float.parseFloat(split[4]));
+            return resultBuilder.build();
         } finally {
             if (socket != null) {
                 socket.close();
@@ -141,6 +137,5 @@ public class ZabbixSender {
             }
         }
 
-        return senderResult;
     }
 }
