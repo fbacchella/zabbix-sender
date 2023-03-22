@@ -74,17 +74,12 @@ public class ZabbixSender {
      * @throws IOException
      */
     public SenderResult send(List<DataObject> dataObjectList, long clock) throws IOException {
-        Socket socket = null;
-        InputStream inputStream = null;
-        OutputStream outputStream = null;
-        try {
-            socket = new Socket();
-
+        try (Socket socket = new Socket()){
             socket.setSoTimeout(socketTimeout);
             socket.connect(new InetSocketAddress(host, port), connectTimeout);
 
-            inputStream = socket.getInputStream();
-            outputStream = socket.getOutputStream();
+            InputStream inputStream = socket.getInputStream();
+            OutputStream outputStream = socket.getOutputStream();
 
             SenderRequest senderRequest = SenderRequest.builder()
                                                        .data(dataObjectList)
@@ -125,17 +120,6 @@ public class ZabbixSender {
             resultBuilder.total(Integer.parseInt(split[3]));
             resultBuilder.spentSeconds(Float.parseFloat(split[4]));
             return resultBuilder.build();
-        } finally {
-            if (socket != null) {
-                socket.close();
-            }
-            if (inputStream != null) {
-                inputStream.close();
-            }
-            if (outputStream != null) {
-                outputStream.close();
-            }
         }
-
     }
 }
