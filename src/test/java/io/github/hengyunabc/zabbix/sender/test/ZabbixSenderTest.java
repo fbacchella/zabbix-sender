@@ -14,58 +14,58 @@ import com.alibaba.fastjson.JSONObject;
 
 public class ZabbixSenderTest {
 
-	String host = "127.0.0.1";
-	int port = 49156;
+    String host = "127.0.0.1";
+    int port = 49156;
 
-	@Test
-	public void test_LLD_rule() throws IOException {
-		ZabbixSender zabbixSender = new ZabbixSender(host, port);
+    @Test
+    public void test_LLD_rule() throws IOException {
+        ZabbixSender zabbixSender = new ZabbixSender(host, port);
 
-		DataObject dataObject = new DataObject();
-		dataObject.setHost("172.17.42.1");
-		dataObject.setKey("healthcheck[dw,notificationserver]");
+        DataObject dataObject = new DataObject();
+        dataObject.setHost("172.17.42.1");
+        dataObject.setKey("healthcheck[dw,notificationserver]");
 
-		JSONObject data = new JSONObject();
-		List<JSONObject> aray = new LinkedList<JSONObject>();
-		JSONObject xxx = new JSONObject();
-		xxx.put("hello", "hello");
+        JSONObject data = new JSONObject();
+        List<JSONObject> aray = new LinkedList<JSONObject>();
+        JSONObject xxx = new JSONObject();
+        xxx.put("hello", "hello");
 
-		aray.add(xxx);
-		data.put("data", aray);
+        aray.add(xxx);
+        data.put("data", aray);
 
-		dataObject.setValue(data.toJSONString());
-		dataObject.setClock(System.currentTimeMillis()/1000);
-		SenderResult result = zabbixSender.send(dataObject);
+        dataObject.setValue(data.toJSONString());
+        dataObject.setClock(System.currentTimeMillis()/1000);
+        SenderResult result = zabbixSender.send(dataObject);
 
-		System.out.println("result:" + result);
-		if (result.success()) {
-			System.out.println("send success.");
-		} else {
-			System.err.println("send fail!");
-		}
-
-
-	}
-
-	@Test
-	public void test() throws IOException {
-		ZabbixSender zabbixSender = new ZabbixSender(host, port);
-
-		DataObject dataObject = new DataObject();
-		dataObject.setHost("172.17.42.1");
-		dataObject.setKey("a[test, jvm.mem.non-heap.used]");
-		dataObject.setValue("10");
-		dataObject.setClock(System.currentTimeMillis()/1000);
-		SenderResult result = zabbixSender.send(dataObject);
-
-		System.out.println("result:" + result);
-		if (result.success()) {
-			System.out.println("send success.");
-		} else {
-			System.err.println("send fail!");
-		}
+        System.out.println("result:" + result);
+        if (result.success()) {
+            System.out.println("send success.");
+        } else {
+            System.err.println("send fail!");
+        }
 
 
-	}
+    }
+
+    @Test
+    public void test() throws IOException {
+        ZabbixSender zabbixSender = new ZabbixSender(host, port);
+
+        DataObject dataObject = new DataObject();
+        dataObject.setHost("172.17.42.1");
+        dataObject.setKey("a[test, jvm.mem.non-heap.used]");
+        dataObject.setValue("10");
+        dataObject.setClock(System.currentTimeMillis()/1000);
+        SenderResult result = zabbixSender.send(dataObject);
+
+        System.out.println("result:" + result);
+        if (result.success()) {
+            System.out.println("send success.");
+        } else {
+            System.err.println("send fail!");
+        }
+
+
+    }
 
 }
