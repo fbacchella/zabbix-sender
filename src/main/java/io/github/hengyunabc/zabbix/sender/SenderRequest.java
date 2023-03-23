@@ -1,5 +1,6 @@
 package io.github.hengyunabc.zabbix.sender;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +29,7 @@ class SenderRequest {
      * TimeUnit is SECONDS.
      */
     @Getter
-    private final long clock;
+    private final Instant clock;
 
     @Getter @Singular("data")
     private List<DataObject> data;
@@ -36,7 +37,13 @@ class SenderRequest {
     public byte[] toBytes() {
         // https://www.zabbix.com/documentation/current/en/manual/appendix/items/trapper
 
-        byte[] jsonBytes = JSON.toJSONBytes(this);
+        Map<String, Object> content = new LinkedHashMap<>(8);
+        content.put("request", request);
+        content.put("data", data.stream().map(d -> d.getContent()).collect(Collectors.toList()));
+        content.put("clock", clock.getEpochSecond());
+        content.put("ns", clock.getNano());
+
+        byte[] jsonBytes = JSON.toJSONBytes(content);
 
         byte[] result = new byte[header.length + 4 + 4 + jsonBytes.length];
 

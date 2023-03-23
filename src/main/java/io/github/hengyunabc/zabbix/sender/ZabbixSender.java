@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,46 +51,31 @@ public class ZabbixSender {
     }
 
     public SenderResult send(DataObject dataObject) throws IOException {
-        return send(dataObject, System.currentTimeMillis() / 1000);
+        return send(Instant.now(), dataObject);
     }
 
-    /**
-     *
-     * @param dataObject
-     * @param clock
-     *            TimeUnit is SECONDS.
-     * @return
-     * @throws IOException
-     */
-    public SenderResult send(DataObject dataObject, long clock) throws IOException {
-        return send(Collections.singletonList(dataObject), clock);
-    }
-
-    public SenderResult send(List<DataObject> dataObjectList) throws IOException {
-        return send(dataObjectList, System.currentTimeMillis() / 1000);
+    public SenderResult send(DataObject... dataObjectList) throws IOException {
+        return send(Instant.now(), dataObjectList);
     }
 
     /**
      *
      * @param dataObjectList
      * @param clock
-     *            TimeUnit is SECONDS.
      * @return
      * @throws IOException
      */
-    public SenderResult send(List<DataObject> dataObjectList, long clock) throws IOException {
+    public SenderResult send(Instant clock, DataObject... dataObjectList) throws IOException {
         try (Socket socket = new Socket()){
             socket.setSoTimeout(socketTimeout);
             socket.connect(new InetSocketAddress(host, port), connectTimeout);
 
+            SenderRequest.SenderRequestBuilder builder = SenderRequest.builder();
+            Arrays.stream(dataObjectList).forEach(builder::data);
+            SenderRequest senderRequest = builder.clock(clock).build();
+
             OutputStream outputStream = socket.getOutputStream();
-
-            SenderRequest senderRequest = SenderRequest.builder()
-                                                       .data(dataObjectList)
-                                                       .clock(clock)
-                                                       .build();
             outputStream.write(senderRequest.toBytes());
-
             outputStream.flush();
 
             // normal responseData.length < 100
