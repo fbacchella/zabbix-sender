@@ -1,6 +1,10 @@
 package io.github.hengyunabc.zabbix.sender;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.alibaba.fastjson.JSON;
 
@@ -30,8 +34,7 @@ class SenderRequest {
     private List<DataObject> data;
 
     public byte[] toBytes() {
-        // https://www.zabbix.org/wiki/Docs/protocols/zabbix_sender/2.0
-        // https://www.zabbix.org/wiki/Docs/protocols/zabbix_sender/1.8/java_example
+        // https://www.zabbix.com/documentation/current/en/manual/appendix/items/trapper
 
         byte[] jsonBytes = JSON.toJSONBytes(this);
 
@@ -43,6 +46,10 @@ class SenderRequest {
         result[header.length + 1] = (byte) ((jsonBytes.length >> 8) & 0x00FF);
         result[header.length + 2] = (byte) ((jsonBytes.length >> 16) & 0x0000FF);
         result[header.length + 3] = (byte) ((jsonBytes.length >> 24) & 0x000000FF);
+        result[header.length + 4] = (byte) 0;
+        result[header.length + 5] = (byte) 0;
+        result[header.length + 6] = (byte) 0;
+        result[header.length + 7] = (byte) 0;
 
         System.arraycopy(jsonBytes, 0, result, header.length + 4 + 4, jsonBytes.length);
         return result;

@@ -1,22 +1,24 @@
 package io.github.hengyunabc.zabbix.sender;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.alibaba.fastjson.JSON;
+
 import lombok.Getter;
-import lombok.Setter;
 
 /**
  *
@@ -24,25 +26,25 @@ import lombok.Setter;
  *
  */
 public class ZabbixSender {
-    private static final Pattern PATTERN = Pattern.compile("[^0-9\\.]+");
-    private static final Charset UTF8 = StandardCharsets.UTF_8;
+    private static final Pattern PATTERN = Pattern.compile("([a-z ]+): ([0-9.]+)(; )?");
+    public static final String ZABBIX_MAGIC = "ZBXD";
 
-    @Setter @Getter
-    String host;
-    @Setter @Getter
-    int port;
-    @Setter @Getter
-    int connectTimeout = 3 * 1000;
-    @Setter @Getter
-    int socketTimeout = 3 * 1000;
+    @Getter
+    private final String host;
+    @Getter
+    private final int port;
+    @Getter
+    private final int connectTimeout;
+    @Getter
+    private final int socketTimeout;
 
-    public ZabbixSender(String host, int port) {
-        this.host = host;
-        this.port = port;
+    public ZabbixSender(String host, int port, JsonHandler handler) {
+        this(host, port, handler, 3 * 1000, 3 * 1000);
     }
 
-    public ZabbixSender(String host, int port, int connectTimeout, int socketTimeout) {
-        this(host, port);
+    public ZabbixSender(String host, int port, JsonHandler handler, int connectTimeout, int socketTimeout) {
+        this.host = host;
+        this.port = port;
         this.connectTimeout = connectTimeout;
         this.socketTimeout = socketTimeout;
     }
@@ -80,7 +82,6 @@ public class ZabbixSender {
             socket.setSoTimeout(socketTimeout);
             socket.connect(new InetSocketAddress(host, port), connectTimeout);
 
-            InputStream inputStream = socket.getInputStream();
             OutputStream outputStream = socket.getOutputStream();
 
             SenderRequest senderRequest = SenderRequest.builder()
@@ -93,35 +94,66 @@ public class ZabbixSender {
 
             // normal responseData.length < 100
             byte[] responseData = new byte[512];
+            ByteBuffer bbuffer = ByteBuffer.wrap(responseData);
+            bbuffer.order(ByteOrder.LITTLE_ENDIAN);
 
+            InputStream inputStream = socket.getInputStream();
             int readCount = 0;
-
-            while (true) {
-                int read = inputStream.read(responseData, readCount, responseData.length - readCount);
-                if (read <= 0) {
-                    break;
-                }
+            // Read the header
+            readCount += inputStream.read(responseData, 0, 13);
+            String header = readString(bbuffer, 4, StandardCharsets.US_ASCII);
+            if (! ZABBIX_MAGIC.equals(header)) {
+                throw new IOException("Not a Zabbix connection");
+            }
+            bbuffer.position(4);
+            if (bbuffer.get() != 1) {
+                throw new IOException("Not supported Zabbix exchange");
+            }
+            int size = bbuffer.getInt();
+            // Reserved
+            bbuffer.getInt();
+            int read;
+            while (readCount < (size + 13) && (read = inputStream.read(responseData, readCount, size)) > 0) {
                 readCount += read;
             }
 
             SenderResult.SenderResultBuilder resultBuilder = SenderResult.builder();
             resultBuilder.returnEmptyArray(readCount < 13);
 
-            // header('ZBXD\1') + len + 0
-            // 5 + 4 + 4
-            String jsonString = new String(responseData, 13, readCount - 13, UTF8);
-            JSONObject json = JSON.parseObject(jsonString);
-            String info = json.getString("info");
-            // example info: processed: 1; failed: 0; total: 1; seconds spent:
-            // 0.000053
-            // after split: [, 1, 0, 1, 0.000053]
-            String[] split = PATTERN.split(info);
+            String jsonString = readString(bbuffer, size, StandardCharsets.UTF_8);
+            Map<String, Object> responseObject = JSON.parseObject(jsonString);
 
-            resultBuilder.processed(Integer.parseInt(split[1]));
-            resultBuilder.failed(Integer.parseInt(split[2]));
-            resultBuilder.total(Integer.parseInt(split[3]));
-            resultBuilder.spentSeconds(Float.parseFloat(split[4]));
-            return resultBuilder.build();
+            String response = (String) responseObject.get("response");
+            if (!"success".equals(response)) {
+                throw new IOException("Zabbix failure: " + responseObject);
+            }
+            return parseResultsString(responseObject.get("info").toString());
         }
     }
+
+    private String readString(ByteBuffer bbuffer, int size, Charset charset) {
+        String content = charset.decode(bbuffer.slice().limit(size)).toString();
+        bbuffer.position(bbuffer.position() + size);
+        return content;
+    }
+
+    private SenderResult parseResultsString(String results) {
+        Matcher m = PATTERN.matcher(results);
+        Map<String, Number> infoValues = new HashMap<>();
+        while (m.find()) {
+            if ("seconds spent".equals(m.group(1))) {
+                infoValues.put(m.group(1), Float.parseFloat(m.group(2)));
+            } else {
+                infoValues.put(m.group(1), Integer.parseInt(m.group(2)));
+            }
+        }
+        SenderResult.SenderResultBuilder resultBuilder = SenderResult.builder();
+        resultBuilder.returnEmptyArray(false);
+        Optional.ofNullable(infoValues.get("processed")).map(Number::intValue).ifPresent(resultBuilder::processed);
+        Optional.ofNullable(infoValues.get("failed")).map(Number::intValue).ifPresent(resultBuilder::failed);
+        Optional.ofNullable(infoValues.get("total")).map(Number::intValue).ifPresent(resultBuilder::total);
+        Optional.ofNullable(infoValues.get("seconds spent")).map(Number::floatValue).ifPresent(resultBuilder::spentSeconds);
+        return resultBuilder.build();
+    }
+
 }
