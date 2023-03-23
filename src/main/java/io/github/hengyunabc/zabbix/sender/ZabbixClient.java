@@ -1,13 +1,9 @@
 package io.github.hengyunabc.zabbix.sender;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.Charset;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
@@ -26,9 +22,8 @@ import lombok.Getter;
  * @author hengyunabc
  *
  */
-public class ZabbixSender {
+public class ZabbixClient {
     private static final Pattern PATTERN = Pattern.compile("([a-z ]+): ([0-9.]+)(; )?");
-    public static final String ZABBIX_MAGIC = "ZBXD";
 
     @Getter
     private final String host;
@@ -39,11 +34,11 @@ public class ZabbixSender {
     @Getter
     private final int socketTimeout;
 
-    public ZabbixSender(String host, int port, JsonHandler handler) {
-        this(host, port, handler, 3 * 1000, 3 * 1000);
+    public ZabbixClient(String host, int port) {
+        this(host, port, 3 * 1000, 3 * 1000);
     }
 
-    public ZabbixSender(String host, int port, JsonHandler handler, int connectTimeout, int socketTimeout) {
+    public ZabbixClient(String host, int port, int connectTimeout, int socketTimeout) {
         this.host = host;
         this.port = port;
         this.connectTimeout = connectTimeout;
@@ -66,47 +61,18 @@ public class ZabbixSender {
      * @throws IOException
      */
     public SenderResult send(Instant clock, DataObject... dataObjectList) throws IOException {
-        try (Socket socket = new Socket()){
-            socket.setSoTimeout(socketTimeout);
-            socket.connect(new InetSocketAddress(host, port), connectTimeout);
+        try (SocketChannel socket = SocketChannel.open();
+             ZabbixDialog dialog = new ZabbixDialog(socket)) {
+            socket.socket().setSoTimeout(socketTimeout);
+            socket.socket().connect(new InetSocketAddress(host, port), connectTimeout);
 
             SenderRequest.SenderRequestBuilder builder = SenderRequest.builder();
             Arrays.stream(dataObjectList).forEach(builder::data);
             SenderRequest senderRequest = builder.clock(clock).build();
 
-            OutputStream outputStream = socket.getOutputStream();
-            outputStream.write(senderRequest.toBytes());
-            outputStream.flush();
-
-            // normal responseData.length < 100
-            byte[] responseData = new byte[512];
-            ByteBuffer bbuffer = ByteBuffer.wrap(responseData);
-            bbuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            InputStream inputStream = socket.getInputStream();
-            int readCount = 0;
-            // Read the header
-            readCount += inputStream.read(responseData, 0, 13);
-            String header = readString(bbuffer, 4, StandardCharsets.US_ASCII);
-            if (! ZABBIX_MAGIC.equals(header)) {
-                throw new IOException("Not a Zabbix connection");
-            }
-            bbuffer.position(4);
-            if (bbuffer.get() != 1) {
-                throw new IOException("Not supported Zabbix exchange");
-            }
-            int size = bbuffer.getInt();
-            // Reserved
-            bbuffer.getInt();
-            int read;
-            while (readCount < (size + 13) && (read = inputStream.read(responseData, readCount, size)) > 0) {
-                readCount += read;
-            }
-
-            SenderResult.SenderResultBuilder resultBuilder = SenderResult.builder();
-            resultBuilder.returnEmptyArray(readCount < 13);
-
-            String jsonString = readString(bbuffer, size, StandardCharsets.UTF_8);
+            dialog.send(ByteBuffer.wrap(JSON.toJSONBytes(senderRequest.getContent())));
+            ByteBuffer responseBuffer = dialog.read();
+            String jsonString = dialog.readString(responseBuffer, responseBuffer.remaining(), StandardCharsets.UTF_8);
             Map<String, Object> responseObject = JSON.parseObject(jsonString);
 
             String response = (String) responseObject.get("response");
@@ -115,12 +81,6 @@ public class ZabbixSender {
             }
             return parseResultsString(responseObject.get("info").toString());
         }
-    }
-
-    private String readString(ByteBuffer bbuffer, int size, Charset charset) {
-        String content = charset.decode(bbuffer.slice().limit(size)).toString();
-        bbuffer.position(bbuffer.position() + size);
-        return content;
     }
 
     private SenderResult parseResultsString(String results) {
