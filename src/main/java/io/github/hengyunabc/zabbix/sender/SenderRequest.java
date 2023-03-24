@@ -1,13 +1,12 @@
 package io.github.hengyunabc.zabbix.sender;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Singular;
 
@@ -16,28 +15,24 @@ import lombok.Singular;
  * @author hengyunabc
  *
  */
-@Builder
+@Builder @Data
 class SenderRequest {
 
     @Getter @Builder.Default
     private final String request = "sender data";
 
-    @Getter
-    private final Instant clock;
+    @Getter @Builder.Default
+    private final Instant clock = Instant.now();
 
     @Getter @Singular("data")
-    private List<DataObject> data;
+    private final List<DataObject> data;
 
-    public Map<String, Object> getContent() {
+    public Map<String, Object> getJsonObject() {
         // https://www.zabbix.com/documentation/current/en/manual/appendix/items/trapper
-
-        Map<String, Object> content = new LinkedHashMap<>(8);
-        content.put("request", request);
-        content.put("data", data.stream().map(DataObject::getContent).collect(Collectors.toList()));
-        content.put("clock", clock.getEpochSecond());
-        content.put("ns", clock.getNano());
-
-        return Collections.unmodifiableMap(content);
+        return Map.of("request", request,
+                      "data", data.stream().map(DataObject::getJsonObject).collect(Collectors.toList()),
+                      "clock", clock.getEpochSecond(),
+                      "ns", clock.getNano());
     }
 
 }

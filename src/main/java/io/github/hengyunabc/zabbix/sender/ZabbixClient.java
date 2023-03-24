@@ -57,8 +57,8 @@ public class ZabbixClient {
 
     /**
      *
-     * @param dataObjectList
      * @param clock
+     * @param dataObjectList
      * @return
      * @throws IOException
      */
@@ -72,7 +72,7 @@ public class ZabbixClient {
             Arrays.stream(dataObjectList).forEach(builder::data);
             SenderRequest senderRequest = builder.clock(clock).build();
 
-            ByteBuffer outJsonString = ByteBuffer.wrap(jhandler.serialize(senderRequest.getContent()).getBytes(StandardCharsets.UTF_8));
+            ByteBuffer outJsonString = ByteBuffer.wrap(jhandler.serialize(senderRequest.getJsonObject()).getBytes(StandardCharsets.UTF_8));
             dialog.send(outJsonString);
             ByteBuffer responseBuffer = dialog.read();
             String inJsonString = dialog.readString(responseBuffer, responseBuffer.remaining(), StandardCharsets.UTF_8);
@@ -97,7 +97,6 @@ public class ZabbixClient {
             }
         }
         SenderResult.SenderResultBuilder resultBuilder = SenderResult.builder();
-        resultBuilder.returnEmptyArray(false);
         Optional.ofNullable(infoValues.get("processed")).map(Number::intValue).ifPresent(resultBuilder::processed);
         Optional.ofNullable(infoValues.get("failed")).map(Number::intValue).ifPresent(resultBuilder::failed);
         Optional.ofNullable(infoValues.get("total")).map(Number::intValue).ifPresent(resultBuilder::total);
