@@ -1,8 +1,7 @@
 package io.github.hengyunabc.zabbix.sender;
 
-import com.alibaba.fastjson.JSON;
-
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 
 /**
@@ -10,7 +9,7 @@ import lombok.Getter;
  * @author hengyunabc
  *
  */
-@Builder
+@Builder @Data
 public class SenderResult {
     @Getter
     private final int processed;
@@ -36,8 +35,4 @@ public class SenderResult {
         return !returnEmptyArray && processed == total;
     }
 
-    @Override
-    public String toString() {
-        return JSON.toJSONString(this);
-    }
 }

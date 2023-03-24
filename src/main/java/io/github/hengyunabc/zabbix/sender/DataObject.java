@@ -5,12 +5,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.alibaba.fastjson.JSON;
-
 import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 
-@Builder
+@Builder @Data
 public class DataObject {
 
     @Getter @Builder.Default
@@ -30,11 +29,6 @@ public class DataObject {
         content.put("clock", clock.getEpochSecond());
         content.put("ns", clock.getNano());
         return Collections.unmodifiableMap(content);
-    }
-
-    @Override
-    public String toString(){
-        return JSON.toJSONString(this);
     }
 
 }

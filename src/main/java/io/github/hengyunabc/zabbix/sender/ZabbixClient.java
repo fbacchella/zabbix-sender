@@ -13,8 +13,6 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.alibaba.fastjson.JSON;
-
 import lombok.Getter;
 
 /**
@@ -23,6 +21,7 @@ import lombok.Getter;
  *
  */
 public class ZabbixClient {
+
     private static final Pattern PATTERN = Pattern.compile("([a-z ]+): ([0-9.]+)(; )?");
 
     @Getter
@@ -33,16 +32,19 @@ public class ZabbixClient {
     private final int connectTimeout;
     @Getter
     private final int socketTimeout;
+    @Getter
+    private final JsonHandler jhandler;
 
-    public ZabbixClient(String host, int port) {
-        this(host, port, 3 * 1000, 3 * 1000);
+    public ZabbixClient(String host, int port, JsonHandler jhandler) {
+        this(host, port, 3 * 1000, 3 * 1000, jhandler);
     }
 
-    public ZabbixClient(String host, int port, int connectTimeout, int socketTimeout) {
+    public ZabbixClient(String host, int port, int connectTimeout, int socketTimeout, JsonHandler jhandler) {
         this.host = host;
         this.port = port;
         this.connectTimeout = connectTimeout;
         this.socketTimeout = socketTimeout;
+        this.jhandler = jhandler;
     }
 
     public SenderResult send(DataObject dataObject) throws IOException {
@@ -70,10 +72,11 @@ public class ZabbixClient {
             Arrays.stream(dataObjectList).forEach(builder::data);
             SenderRequest senderRequest = builder.clock(clock).build();
 
-            dialog.send(ByteBuffer.wrap(JSON.toJSONBytes(senderRequest.getContent())));
+            ByteBuffer outJsonString = ByteBuffer.wrap(jhandler.serialize(senderRequest.getContent()).getBytes(StandardCharsets.UTF_8));
+            dialog.send(outJsonString);
             ByteBuffer responseBuffer = dialog.read();
-            String jsonString = dialog.readString(responseBuffer, responseBuffer.remaining(), StandardCharsets.UTF_8);
-            Map<String, Object> responseObject = JSON.parseObject(jsonString);
+            String inJsonString = dialog.readString(responseBuffer, responseBuffer.remaining(), StandardCharsets.UTF_8);
+            Map<String, Object> responseObject = jhandler.deserialize(inJsonString, Map.class);
 
             String response = (String) responseObject.get("response");
             if (!"success".equals(response)) {
