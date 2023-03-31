@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>fr.loghub</groupId>
-    <artifactId>zabbix-sender</artifactId>
+    <artifactId>zabbixsender</artifactId>
     <version>0.0.6-SNAPSHOT</version>
 
-    <name>zabbix-sender</name>
-    <description>zabbix-sender for java</description>
-    <url>https://github.com/hengyunabc/zabbix-sender</url>
+    <name>zabbixsender</name>
+    <description>zabbix sender for java</description>
+    <url>hhttps://github.com/fbacchella/zabbix-sender</url>
     <inceptionYear>2015</inceptionYear>
 
     <licenses>
@@ -40,11 +40,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>11</maven.compiler.release>
-        <surefire.version>3.0.0-M9</surefire.version>
-
-        <!-- Test -->
-        <junit.version>4.13.2</junit.version>
-
     </properties>
 
     <dependencies>
@@ -55,14 +50,19 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- Test Artifacts -->
+        <!-- Test dependencies -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>2.0.26</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -146,16 +146,27 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${surefire.version}</version>
+                    <version>3.0.0-M9</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-report-plugin</artifactId>
-                    <version>${surefire.version}</version>
+                    <version>3.0.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>${groupId}.${artifactId}</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
