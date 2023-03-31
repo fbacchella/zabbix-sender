@@ -48,7 +48,6 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
         } catch (ClosedByInterruptException e) {
             doneProcessing.complete(true);
         } catch (IOException e) {
-            e.printStackTrace();
             throw new IllegalStateException(e);
         }
     }

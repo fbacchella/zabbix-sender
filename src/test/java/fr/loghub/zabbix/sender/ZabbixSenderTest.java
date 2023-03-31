@@ -44,6 +44,7 @@ public class ZabbixSenderTest {
     public void startServer() throws InterruptedException {
         server.start();
         Assert.assertTrue(server.waitStarted(1, TimeUnit.SECONDS));
+        Thread.sleep(100);
     }
 
     @After
@@ -84,7 +85,7 @@ public class ZabbixSenderTest {
             client.write(bad);
         }
         ExecutionException failure = Assert.assertThrows(ExecutionException.class, () -> server.waitStopped(1, TimeUnit.SECONDS));
-        Assert.assertSame("Not a Zabbix connection", failure.getCause().getCause().getMessage());
+        Assert.assertEquals("Not a Zabbix connection", failure.getCause().getCause().getMessage());
     }
 
 }
