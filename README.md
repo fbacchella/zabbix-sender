@@ -3,15 +3,15 @@ java zabbix-sender
 
 First you should know zabbix sender:
 
-https://www.zabbix.org/wiki/Docs/protocols/zabbix_sender/2.0
+https://www.zabbix.com/documentation/6.4/en/manual/concepts/sender
 
-https://www.zabbix.org/wiki/Docs/protocols/zabbix_sender/1.8/java_example
+https://www.zabbix.com/documentation/6.4/en/manual/appendix/items/trapper
 
 If you don't have a zabbix server, recommend use docker to setup test environment.
 
 https://hub.docker.com/u/zabbix/
 
-Support zabbix server 2.4/3.0.
+Support zabbix server up to 6.4.
 
 
 ##Example
@@ -19,38 +19,47 @@ Support zabbix server 2.4/3.0.
 Zabbix Sender do not create host/item, you have to create them by yourself, or try to use [zabbix-api](https://github.com/hengyunabc/zabbix-api).
 
 1. Create/select a host in zabbix server.
-1. Create a item in zabbix server, which name is "testItem", type is "Zabbix trapper".
-1. Send data.
-1. If success, you can find data in web browser. Open "Monitoring"/"Latest data", then filter with Item name or Hosts.
+2. Create an item in zabbix server, which name is "testItem", type is "Zabbix trapper".
+4. Send data.
+4. If success, you can find data in web browser. Open "Monitoring"/"Latest data", then filter with Item name or Hosts.
 
 ```java
-		String host = "127.0.0.1";
-		int port = 10051;
-		ZabbixSender zabbixSender = new ZabbixSender(host, port);
+    JsonHandler jhandler = new JsonHandler() {
+        public String serialize(Object data) {
+            return JSON.toJSONString(data);
+        }
+        public <T> T deserialize(String content, Class<T> clazz) {
+            return JSON.parseObject(content, clazz);
+        }
+    };
 
-		DataObject dataObject = new DataObject();
-		dataObject.setHost("172.17.42.1");
-		dataObject.setKey("test_item");
-		dataObject.setValue("10");
-		// TimeUnit is SECONDS.
-		dataObject.setClock(System.currentTimeMillis()/1000);
-		SenderResult result = zabbixSender.send(dataObject);
+    String host = "127.0.0.1";
+    int port = 10051;
+    ZabbixSender zabbixClient = new ZabbixSender(host, port, jhandler);
 
-		System.out.println("result:" + result);
-		if (result.success()) {
-			System.out.println("send success.");
-		} else {
-			System.err.println("sned fail!");
-		}
+    DataObject dataObject = DataObject.builder()
+                                      .host("172.17.42.1")
+                                      .key("healthcheck[dw,notificationserver]")
+                                      .value("thevalue")
+                                      .clock(Instant.now())
+                                      .build();
+    SenderResult result = zabbixClient.send(dataObject);
+
+    System.out.println("result:" + result);
+    if (result.success()) {
+        System.out.println("send success.");
+    } else {
+        System.err.println("sned fail!");
+    }
 ```
 
 ## Maven dependency
 
 ```xml
 <dependency>
-    <groupId>io.github.hengyunabc</groupId>
+    <groupId>fr.loghub</groupId>
     <artifactId>zabbix-sender</artifactId>
-    <version>0.0.5</version>
+    <version>0.0.6-SNAPSHOT</version>
 </dependency>
 ```
 
