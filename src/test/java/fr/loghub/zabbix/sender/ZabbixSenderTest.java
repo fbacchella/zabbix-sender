@@ -49,7 +49,7 @@ public class ZabbixSenderTest {
 
     @After
     public void stopServer() throws ExecutionException, InterruptedException, TimeoutException {
-        if (server.isAlive()) {
+        if (server.serverAlive()) {
             server.interrupt();
             Assert.assertTrue(server.waitStopped(1, TimeUnit.SECONDS));
         }

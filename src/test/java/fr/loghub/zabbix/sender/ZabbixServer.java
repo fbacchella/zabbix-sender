@@ -60,6 +60,11 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
             throws InterruptedException, ExecutionException, TimeoutException {
         return doneProcessing.get(timeout, unit);
     }
+
+    public boolean serverAlive() {
+        return ! doneProcessing.isDone();
+    }
+
     /**
      * Method invoked when the given thread terminates due to the
      * given uncaught exception.
