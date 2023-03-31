@@ -1,4 +1,4 @@
-package io.github.hengyunabc.zabbix.sender;
+package fr.loghub.zabbix;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -9,18 +9,32 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-public class ZabbixDialog implements Closeable {
+/**
+ * An implementation of a Zabbix exchange using the standard Zabbix header.
+ * It does not handle compression nor large packet.
+ */
+public class ZabbixProtocol implements Closeable {
     public static final String ZABBIX_MAGIC = "ZBXD";
     private static final ByteOrder NETWORK_ORDER = ByteOrder.LITTLE_ENDIAN;
     private static final int DEFAULT_BUFFER_SIZE = 512;
 
     private final SocketChannel connection;
 
-    public ZabbixDialog(SocketChannel connection) {
+    public ZabbixProtocol(SocketChannel connection) {
         this.connection = connection;
     }
 
+    /**
+     *
+     * @param request
+     * @return
+     * @throws IOException
+     * @throws IllegalArgumentException if the packet size is too big.
+     */
     public int send(ByteBuffer request) throws IOException {
+        if (request.remaining() > 1073741824) {
+            throw new IllegalArgumentException("Oversize request");
+        }
         byte[] payload = new byte[ZABBIX_MAGIC.length() + 1 + 4 + 4 + request.remaining()];
         ByteBuffer payloadBuffer = ByteBuffer.wrap(payload);
         payloadBuffer.order(NETWORK_ORDER);

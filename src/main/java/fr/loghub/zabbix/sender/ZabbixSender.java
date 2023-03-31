@@ -1,4 +1,4 @@
-package io.github.hengyunabc.zabbix.sender;
+package fr.loghub.zabbix.sender;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import fr.loghub.zabbix.ZabbixProtocol;
+import lombok.Data;
 import lombok.Getter;
 
 /**
@@ -20,7 +22,8 @@ import lombok.Getter;
  * @author hengyunabc
  *
  */
-public class ZabbixClient {
+@Data
+public class ZabbixSender {
 
     private static final Pattern PATTERN = Pattern.compile("([a-z ]+): ([0-9.]+)(; )?");
 
@@ -35,20 +38,41 @@ public class ZabbixClient {
     @Getter
     private final JsonHandler jhandler;
 
-    public ZabbixClient(String host, int port, JsonHandler jhandler) {
+    /**
+     * A ZabbixClient with a default timeout of 3 seconds
+     * @param host
+     * @param port
+     * @param jhandler
+     */
+    public ZabbixSender(String host, int port, JsonHandler jhandler) {
         this(host, port, 3 * 1000, 3 * 1000, jhandler);
     }
 
-    public ZabbixClient(String host, int port, int connectTimeout, int socketTimeout, JsonHandler jhandler) {
+    /**
+     * A ZabbixClient with the same timeout for connect and socket communications
+     * @param host
+     * @param port
+     * @param timeout
+     * @param jhandler
+     */
+    public ZabbixSender(String host, int port, int timeout, JsonHandler jhandler) {
+        this(host, port, timeout, timeout, jhandler);
+    }
+
+    /**
+     * A ZabbixClient with all explicit settings
+     * @param host
+     * @param port
+     * @param connectTimeout
+     * @param socketTimeout
+     * @param jhandler
+     */
+    public ZabbixSender(String host, int port, int connectTimeout, int socketTimeout, JsonHandler jhandler) {
         this.host = host;
         this.port = port;
         this.connectTimeout = connectTimeout;
         this.socketTimeout = socketTimeout;
         this.jhandler = jhandler;
-    }
-
-    public SenderResult send(DataObject dataObject) throws IOException {
-        return send(Instant.now(), dataObject);
     }
 
     public SenderResult send(DataObject... dataObjectList) throws IOException {
@@ -64,7 +88,7 @@ public class ZabbixClient {
      */
     public SenderResult send(Instant clock, DataObject... dataObjectList) throws IOException {
         try (SocketChannel socket = SocketChannel.open();
-             ZabbixDialog dialog = new ZabbixDialog(socket)) {
+             ZabbixProtocol dialog = new ZabbixProtocol(socket)) {
             socket.socket().setSoTimeout(socketTimeout);
             socket.socket().connect(new InetSocketAddress(host, port), connectTimeout);
 

@@ -1,4 +1,4 @@
-package io.github.hengyunabc.zabbix.sender;
+package fr.loghub.zabbix.sender;
 
 import java.time.Instant;
 import java.util.List;
