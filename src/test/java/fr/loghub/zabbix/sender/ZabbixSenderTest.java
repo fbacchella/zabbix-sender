@@ -60,8 +60,8 @@ public class ZabbixSenderTest {
         ZabbixSender zabbixClient = new ZabbixSender(host, port, jhandler);
         DataObject dataObject = DataObject.builder()
                                           .host("172.17.42.1")
-                                          .key("healthcheck[dw,notificationserver]")
-                                          .value("thevalue")
+                                          .key("healthcheck", "dw", "notificationserver")
+                                          .value(List.of(1, 2))
                                           .clock(Instant.now())
                                           .build();
         SenderResult result = zabbixClient.send(dataObject);
@@ -72,6 +72,7 @@ public class ZabbixSenderTest {
         Map<?, ?> objectMap = ((List<Map>)content.get("data")).get(0);
         Assert.assertEquals(dataObject.getClock().getNano(), objectMap.get("ns"));
         Assert.assertEquals(dataObject.getClock().getEpochSecond(), ((Number)objectMap.get("clock")).longValue());
+        Assert.assertEquals("healthcheck[dw,notificationserver]", objectMap.get("key"));
         Assert.assertEquals(dataObject.getValue(), objectMap.get("value"));
         Assert.assertEquals(dataObject.getHost(), objectMap.get("host"));
         server.interrupt();
