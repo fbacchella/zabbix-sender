@@ -34,8 +34,17 @@ public class DataObject {
             return key(name, elements.stream());
         }
         public Builder key(String name, Stream<Object> elements) {
-            String values = elements.map(Object::toString).collect(Collectors.joining(","));
-            key = String.format("%s[%s]", name, values);
+            if (name != null && ! name.isBlank()) {
+                String values = elements.map(Object::toString).collect(Collectors.joining(","));
+                key = String.format("%s[%s]", name, values);
+            } else {
+                Object[] elementsArray = elements.toArray();
+                if (elementsArray.length == 1) {
+                    key = elementsArray[0].toString();
+                } else {
+                    throw new IllegalArgumentException("Invalid key definition");
+                }
+            }
             return this;
         }
         public DataObject build() {
