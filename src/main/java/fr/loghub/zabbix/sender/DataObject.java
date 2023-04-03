@@ -21,28 +21,35 @@ public class DataObject {
         private Instant clock = Instant.now();
         @Setter
         private String host;
-        @Setter
         private  String key;
         @Setter
         private Object value;
         private Builder() {
         }
         public Builder key(String name, Object... elements) {
-            return key(name, Arrays.stream(elements));
+            if (elements.length == 0) {
+                return keyResolver(name, null);
+            } else {
+                return keyResolver(name, Arrays.stream(elements));
+            }
         }
         public Builder key(String name, List<Object> elements) {
-            return key(name, elements.stream());
+            return keyResolver(name, elements.stream());
         }
         public Builder key(String name, Stream<Object> elements) {
-            if (name != null && ! name.isBlank()) {
-                String values = elements.map(Object::toString).collect(Collectors.joining(","));
-                key = String.format("%s[%s]", name, values);
+            return keyResolver(name, elements);
+        }
+        private Builder keyResolver(String name, Stream<Object> elements) {
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("Invalid key definition");
+            } else if (elements == null) {
+                key = name;
             } else {
-                Object[] elementsArray = elements.toArray();
-                if (elementsArray.length == 1) {
-                    key = elementsArray[0].toString();
-                } else {
+                String values = elements.map(Object::toString).collect(Collectors.joining(","));
+                if (values.isBlank()) {
                     throw new IllegalArgumentException("Invalid key definition");
+                } else {
+                    key = String.format("%s[%s]", name, values);
                 }
             }
             return this;

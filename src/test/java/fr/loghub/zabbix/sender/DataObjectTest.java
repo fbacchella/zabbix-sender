@@ -18,6 +18,12 @@ public class DataObjectTest {
     }
 
     @Test
+    public void key0() {
+        DataObject.Builder builder = DataObject.builder().key("healthcheck");
+        checkKey(builder, "healthcheck");
+    }
+
+    @Test
     public void key1() {
         DataObject.Builder builder = DataObject.builder().key("healthcheck", "dw", "notificationserver");
         checkKey(builder, "healthcheck[dw,notificationserver]");
@@ -36,20 +42,26 @@ public class DataObjectTest {
     }
 
     @Test
-    public void key4() {
-        DataObject.Builder builder = DataObject.builder().key(null, List.of("keyname"));
-        checkKey(builder, "keyname");
+    public void keybad1() {
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () -> DataObject.builder().key(null, List.of("keyname")));
+        Assert.assertEquals("Invalid key definition", ex.getMessage());
     }
 
     @Test
-    public void key5() {
-        DataObject.Builder builder = DataObject.builder().key("", List.of("keyname"));
-        checkKey(builder, "keyname");
+    public void keybad2() {
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () -> DataObject.builder().key("", List.of("keyname")));
+        Assert.assertEquals("Invalid key definition", ex.getMessage());
     }
 
     @Test
-    public void keybad() {
+    public void keybad3() {
         IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () -> DataObject.builder().key(null, List.of("dw", "notificationserver")));
+        Assert.assertEquals("Invalid key definition", ex.getMessage());
+    }
+
+    @Test
+    public void keybad4() {
+        IllegalArgumentException ex = Assert.assertThrows(IllegalArgumentException.class, () -> DataObject.builder().key(null, Stream.empty()));
         Assert.assertEquals("Invalid key definition", ex.getMessage());
     }
 
