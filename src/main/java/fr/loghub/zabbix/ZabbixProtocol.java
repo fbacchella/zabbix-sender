@@ -49,11 +49,11 @@ public class ZabbixProtocol implements Closeable {
 
         int headerReadCount = 0;
         int headerRead = 0;
-        while (headerReadCount < HEADER_SIZE && (headerRead = inputStream.read(headerBuffer, headerReadCount, HEADER_SIZE)) > 0) {
+        while (headerReadCount < HEADER_SIZE && (headerRead = inputStream.read(headerBuffer, headerReadCount, HEADER_SIZE - headerReadCount)) > 0) {
             headerReadCount += headerRead;
         }
         if (headerRead < 0) {
-            throw new IOException("Connection closed " + headerReadCount);
+            throw new IOException("Connection closed");
         }
 
         int magicStatus = Arrays.compare(headerBuffer, 0, ZABBIX_MAGIC.length, headerBuffer, 0, ZABBIX_MAGIC.length);
@@ -65,7 +65,7 @@ public class ZabbixProtocol implements Closeable {
         }
         int size = readInt(headerBuffer, 5);
         if (size > 1073741824) {
-            throw new IllegalArgumentException("Oversize response");
+            throw new IOException("Oversize response");
         }
         int reserved = readInt(headerBuffer, 9);
         if (reserved != 0) {
@@ -73,9 +73,12 @@ public class ZabbixProtocol implements Closeable {
         }
         byte[] payloadBuffer = new byte[size];
         int readCount = 0;
-        int read;
-        while (readCount < size && (read = inputStream.read(payloadBuffer, readCount, size)) > 0) {
+        int read = 0;
+        while (readCount < size && (read = inputStream.read(payloadBuffer, readCount, size - readCount)) > 0) {
             readCount += read;
+        }
+        if (read < 0) {
+            throw new IOException("Connection closed");
         }
 
         return payloadBuffer;

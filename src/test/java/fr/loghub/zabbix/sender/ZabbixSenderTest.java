@@ -3,6 +3,7 @@ package fr.loghub.zabbix.sender;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -81,12 +83,60 @@ public class ZabbixSenderTest {
 
     @Test
     public void testFailure1() throws IOException {
+        testFailure(bb -> bb.put((byte) 0), "Connection closed");
+    }
+
+    @Test
+    public void testFailure2() throws IOException {
+        testFailure(bb -> {
+            bb.put("ZBXD".getBytes(StandardCharsets.US_ASCII));
+            bb.put((byte) 2);
+            bb.putInt(Integer.MAX_VALUE);
+            bb.putInt(0);
+        }, "Not supported Zabbix exchange");
+    }
+
+    @Test
+    public void testFailure3() throws IOException {
+        testFailure(bb -> {
+            bb.put("ZBXD".getBytes(StandardCharsets.US_ASCII));
+            bb.put((byte) 1);
+            bb.putInt(Integer.MAX_VALUE);
+            bb.putInt(0);
+        }, "Oversize response");
+    }
+
+    @Test
+    public void testFailure4() throws IOException {
+        testFailure(bb -> {
+            bb.put("ZBXD".getBytes(StandardCharsets.US_ASCII));
+            bb.put((byte) 1);
+            bb.putInt( 1);
+            bb.putInt(1);
+        }, "Not supported Zabbix exchange");
+    }
+
+    @Test
+    public void testFailure5() throws IOException {
+        testFailure(bb -> {
+            bb.put("ZBXD".getBytes(StandardCharsets.US_ASCII));
+            bb.put((byte) 1);
+            bb.putInt( 1);
+            bb.putInt(0);
+        }, "Connection closed");
+    }
+
+    private void testFailure(Consumer<ByteBuffer> filler, String message) throws IOException {
         try (SocketChannel client = SocketChannel.open(new InetSocketAddress(host, port))) {
-            ByteBuffer bad = ByteBuffer.allocate(1);
+            ByteBuffer bad = ByteBuffer.allocate(13);
+            bad.order(ByteOrder.LITTLE_ENDIAN);
+            filler.accept(bad);
+            bad.flip();
             client.write(bad);
         }
         ExecutionException failure = Assert.assertThrows(ExecutionException.class, () -> server.waitStopped(1, TimeUnit.SECONDS));
-        Assert.assertEquals("Not a Zabbix connection", failure.getCause().getCause().getMessage());
+        Assert.assertEquals(IOException.class, failure.getCause().getClass());
+        Assert.assertEquals(message, failure.getCause().getMessage());
     }
 
 }
