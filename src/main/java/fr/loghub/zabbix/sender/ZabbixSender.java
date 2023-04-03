@@ -2,7 +2,6 @@ package fr.loghub.zabbix.sender;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -96,11 +95,9 @@ public class ZabbixSender {
             Arrays.stream(dataObjectList).forEach(builder::data);
             SenderRequest senderRequest = builder.clock(clock).build();
 
-            ByteBuffer outJsonString = ByteBuffer.wrap(jhandler.serialize(senderRequest.getJsonObject()).getBytes(StandardCharsets.UTF_8));
-            dialog.send(outJsonString);
-            ByteBuffer responseBuffer = dialog.read();
-            String inJsonString = dialog.readString(responseBuffer, responseBuffer.remaining(), StandardCharsets.UTF_8);
-            Map<String, Object> responseObject = jhandler.deserialize(inJsonString, Map.class);
+            dialog.send(jhandler.serialize(senderRequest.getJsonObject()).getBytes(StandardCharsets.UTF_8));
+            byte[] responseBuffer = dialog.read();
+            Map<String, Object> responseObject = jhandler.deserialize(new String(responseBuffer, StandardCharsets.UTF_8), Map.class);
 
             String response = (String) responseObject.get("response");
             if (!"success".equals(response)) {

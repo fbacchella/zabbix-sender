@@ -3,85 +3,96 @@ package fr.loghub.zabbix;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * An implementation of a Zabbix exchange using the standard Zabbix header.
  * It does not handle compression nor large packet.
  */
 public class ZabbixProtocol implements Closeable {
-    public static final String ZABBIX_MAGIC = "ZBXD";
-    private static final ByteOrder NETWORK_ORDER = ByteOrder.LITTLE_ENDIAN;
-    private static final int DEFAULT_BUFFER_SIZE = 512;
+    private static final byte[] ZABBIX_MAGIC;
+    static {
+        ZABBIX_MAGIC = "ZBXD".getBytes(StandardCharsets.US_ASCII);
+    }
+    private static final int HEADER_SIZE = ZABBIX_MAGIC.length + 1 + 4 + 4;
 
-    private final SocketChannel connection;
+    private final Socket connection;
 
-    public ZabbixProtocol(SocketChannel connection) {
+    public ZabbixProtocol(Socket connection) {
         this.connection = connection;
     }
 
     /**
      *
-     * @param request
-     * @return
-     * @throws IOException
+     * @param request the request body to send
+     * @throws IOException if communication failed
      * @throws IllegalArgumentException if the packet size is too big.
      */
-    public int send(ByteBuffer request) throws IOException {
-        if (request.remaining() > 1073741824) {
+    public void send(byte[] request) throws IOException {
+        if (request.length > 1073741824) {
             throw new IllegalArgumentException("Oversize request");
         }
-        byte[] payload = new byte[ZABBIX_MAGIC.length() + 1 + 4 + 4 + request.remaining()];
-        ByteBuffer payloadBuffer = ByteBuffer.wrap(payload);
-        payloadBuffer.order(NETWORK_ORDER);
-        payloadBuffer.put(ZABBIX_MAGIC.getBytes(StandardCharsets.US_ASCII));
-        payloadBuffer.put((byte)1);
-
-        payloadBuffer.putInt(request.remaining());
-        payloadBuffer.putInt(0);
-        payloadBuffer.put(request);
-        payloadBuffer.flip();
-        return connection.write(payloadBuffer);
+        byte[] payload = Arrays.copyOf(ZABBIX_MAGIC, HEADER_SIZE + request.length);
+        payload[4] = 1;
+        writeInt(request.length, payload, 5);
+        System.arraycopy(request, 0, payload, 13, request.length);
+        connection.getOutputStream().write(payload);
+        connection.getOutputStream().flush();
     }
 
-    public ByteBuffer read() throws IOException {
-        // normal responseData.length < 100
-        byte[] responseData = new byte[DEFAULT_BUFFER_SIZE];
-        ByteBuffer bbuffer = ByteBuffer.wrap(responseData);
-        bbuffer.order(ByteOrder.LITTLE_ENDIAN);
+    public byte[] read() throws IOException {
+        InputStream inputStream = connection.getInputStream();
 
-        InputStream inputStream = connection.socket().getInputStream();
-        int readCount = 0;
-        // Read the header
-        readCount += inputStream.read(responseData);
-        String header = readString(bbuffer, 4, StandardCharsets.US_ASCII);
-        if (! ZABBIX_MAGIC.equals(header)) {
+        byte[] headerBuffer = new byte[HEADER_SIZE];
+
+        int headerReadCount = 0;
+        int headerRead = 0;
+        while (headerReadCount < HEADER_SIZE && (headerRead = inputStream.read(headerBuffer, headerReadCount, HEADER_SIZE)) > 0) {
+            headerReadCount += headerRead;
+        }
+        if (headerRead < 0) {
+            throw new IOException("Connection closed " + headerReadCount);
+        }
+
+        int magicStatus = Arrays.compare(headerBuffer, 0, ZABBIX_MAGIC.length, headerBuffer, 0, ZABBIX_MAGIC.length);
+        if (magicStatus != 0) {
             throw new IOException("Not a Zabbix connection");
         }
-        if (bbuffer.get() != 1) {
+        if (headerBuffer[4] != 1) {
             throw new IOException("Not supported Zabbix exchange");
         }
-        int size = bbuffer.getInt();
-        // Reserved
-        bbuffer.getInt();
+        int size = readInt(headerBuffer, 5);
+        if (size > 1073741824) {
+            throw new IllegalArgumentException("Oversize response");
+        }
+        int reserved = readInt(headerBuffer, 9);
+        if (reserved != 0) {
+            throw new IOException("Not supported Zabbix exchange");
+        }
+        byte[] payloadBuffer = new byte[size];
+        int readCount = 0;
         int read;
-        while (readCount < (size + 13) && readCount < DEFAULT_BUFFER_SIZE && (read = inputStream.read(responseData, readCount, size)) > 0) {
+        while (readCount < size && (read = inputStream.read(payloadBuffer, readCount, size)) > 0) {
             readCount += read;
         }
-        if (readCount != (size + 13)) {
-            throw new IOException("Invalid Zabbix exchange, not enough data");
-        }
-        return bbuffer.slice().limit(size).asReadOnlyBuffer().order(NETWORK_ORDER);
+
+        return payloadBuffer;
+   }
+
+    static int readInt(byte[] buffer, int offset) {
+        return (buffer[offset + 3] & 0xFF) << 24
+             | (buffer[offset + 2] & 0xFF) << 16
+             | (buffer[offset + 1] & 0xFF) << 8
+             | buffer[offset] & 0xFF;
     }
 
-    public String readString(ByteBuffer bbuffer, int size, Charset charset) {
-        String content = charset.decode(bbuffer.slice().limit(size)).toString();
-        bbuffer.position(bbuffer.position() + size);
-        return content;
+    static void writeInt(int value, byte[] buffer, int offset) {
+        buffer[offset + 3] = (byte) ((value >> 24) & 0xFF);
+        buffer[offset + 2] = (byte) ((value >> 16) & 0xFF);
+        buffer[offset + 1] = (byte) ((value >> 8) & 0xFF);
+        buffer[offset] = (byte) (value & 0xFF);
     }
 
     /**

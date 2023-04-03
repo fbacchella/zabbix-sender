@@ -37,7 +37,7 @@ public class ZabbixSenderTest {
 
     String host = "127.0.0.1";
     int port = 49156;
-    private final CompletableFuture<ByteBuffer> queryProcessor = new CompletableFuture<>();
+    private final CompletableFuture<byte[]> queryProcessor = new CompletableFuture<>();
     private final ZabbixServer server = new ZabbixServer("response.blob", queryProcessor::complete);
 
     @Before
@@ -66,8 +66,8 @@ public class ZabbixSenderTest {
                                           .build();
         SenderResult result = zabbixClient.send(dataObject);
         Assert.assertTrue(result.success());
-        ByteBuffer query = queryProcessor.get();
-        Map<?, ?> content = jhandler.deserialize(StandardCharsets.UTF_8.decode(query).toString(), Map.class);
+        byte[] query = queryProcessor.get();
+        Map<?, ?> content = jhandler.deserialize(new String(query, StandardCharsets.UTF_8), Map.class);
         Assert.assertEquals("sender data", content.get("request"));
         Map<?, ?> objectMap = ((List<Map>)content.get("data")).get(0);
         Assert.assertEquals(dataObject.getClock().getNano(), objectMap.get("ns"));
