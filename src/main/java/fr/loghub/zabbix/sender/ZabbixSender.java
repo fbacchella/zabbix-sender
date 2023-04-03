@@ -25,7 +25,7 @@ import lombok.Getter;
 @Data
 public class ZabbixSender {
 
-    private static final Pattern PATTERN = Pattern.compile("([a-z ]+): ([0-9.]+)(; )?");
+    private static final Pattern PATTERN = Pattern.compile("([a-z][a-z ]*): (\\d[\\d.]*)(?:; |$)");
 
     @Getter
     private final String host;
