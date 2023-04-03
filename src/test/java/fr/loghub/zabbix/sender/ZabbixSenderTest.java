@@ -57,7 +57,7 @@ public class ZabbixSenderTest {
 
     @Test
     public void testSuccess() throws IOException, ExecutionException, InterruptedException, TimeoutException {
-        ZabbixSender zabbixClient = new ZabbixSender(host, port, jhandler);
+        ZabbixSender zabbixClient = ZabbixSender.builder().host(host).port(port).jhandler(jhandler).build();
         DataObject dataObject = DataObject.builder()
                                           .host("172.17.42.1")
                                           .key("healthcheck", "dw", "notificationserver")

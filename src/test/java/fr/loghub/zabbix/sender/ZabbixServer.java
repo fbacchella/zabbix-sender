@@ -3,10 +3,13 @@ package fr.loghub.zabbix.sender;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -20,13 +23,14 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
 
     private final String datapath;
     private final CountDownLatch started = new CountDownLatch(0);
-    private final Consumer<ByteBuffer> queryProcessor;
+    private final Consumer<byte[]> queryProcessor;
     private final CompletableFuture<Boolean> doneProcessing = new CompletableFuture();
 
-    public ZabbixServer(String datapath, Consumer<ByteBuffer> queryProcessor) {
+    public ZabbixServer(String datapath, Consumer<byte[]> queryProcessor) {
         this.datapath = datapath;
         this.queryProcessor = queryProcessor;
-        this.setUncaughtExceptionHandler(this);
+        setUncaughtExceptionHandler(this);
+        setName("ZabbixServer");
     }
 
     public void run() {
@@ -34,21 +38,20 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
             server.bind(new InetSocketAddress("127.0.0.1", 49156));
             started.countDown();
             while (true) {
-                try (SocketChannel client = server.accept();
+                try (Socket client = server.accept().socket();
                      ZabbixProtocol handler = new ZabbixProtocol(client)
                 ) {
-                    ByteBuffer queryData = handler.read();
+                    byte[] queryData = handler.read();
                     queryProcessor.accept(queryData);
                     try (InputStream datastream = getClass().getClassLoader().getResourceAsStream(datapath)) {
-                        ByteBuffer content = ByteBuffer.wrap(datastream.readAllBytes());
-                        client.write(content);
+                        client.getOutputStream().write(datastream.readAllBytes());
                     }
                 }
             }
         } catch (ClosedByInterruptException e) {
             doneProcessing.complete(true);
         } catch (IOException e) {
-            throw new IllegalStateException(e);
+            doneProcessing.completeExceptionally(e);
         }
     }
 

@@ -2,19 +2,25 @@ package fr.loghub.zabbix.sender;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.SocketChannel;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLContext;
 
 import fr.loghub.zabbix.ZabbixProtocol;
 import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
 /**
  *
@@ -26,52 +32,68 @@ public class ZabbixSender {
 
     private static final Pattern PATTERN = Pattern.compile("([a-z][a-z ]*): (\\d[\\d.]*)(?:; |$)");
 
+    @Accessors(fluent = true)
+    public static class Builder {
+        @Setter
+        private String host;
+        @Setter
+        private int port;
+        private long connectTimeout = 3000;
+        private long socketTimeout = 3000;
+        @Setter
+        private JsonHandler jhandler;
+        @Setter
+        private SocketFactory factory = SocketFactory.getDefault();
+
+        public Builder connectTimeout(long value, TimeUnit unit) {
+            connectTimeout = TimeUnit.MILLISECONDS.convert(value, unit);
+            if (connectTimeout < 0 || connectTimeout > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("Out of range timeout: " + connectTimeout + "ms");
+            }
+            return this;
+        }
+        public Builder socketTimeout(long value, TimeUnit unit) {
+            socketTimeout = TimeUnit.MILLISECONDS.convert(value, unit);
+            if (connectTimeout < 0 || connectTimeout > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("Out of range timeout: " + connectTimeout + "ms");
+            }
+            return this;
+        }
+        public Builder sslContext(SSLContext sslContext) {
+            factory = sslContext.getSocketFactory();
+            return this;
+        }
+        public Builder socketFactory(SocketFactory factory) {
+            this.factory = factory;
+            return this;
+        }
+        public ZabbixSender build() {
+            return new ZabbixSender(this);
+        }
+    }
+    public static ZabbixSender.Builder builder() {
+        return new ZabbixSender.Builder();
+    }
     @Getter
     private final String host;
     @Getter
     private final int port;
     @Getter
-    private final int connectTimeout;
+    private final long connectTimeout;
     @Getter
-    private final int socketTimeout;
+    private final long socketTimeout;
     @Getter
     private final JsonHandler jhandler;
+    @Getter
+    private final SocketFactory factory;
 
-    /**
-     * A ZabbixClient with a default timeout of 3 seconds
-     * @param host
-     * @param port
-     * @param jhandler
-     */
-    public ZabbixSender(String host, int port, JsonHandler jhandler) {
-        this(host, port, 3 * 1000, 3 * 1000, jhandler);
-    }
-
-    /**
-     * A ZabbixClient with the same timeout for connect and socket communications
-     * @param host
-     * @param port
-     * @param timeout
-     * @param jhandler
-     */
-    public ZabbixSender(String host, int port, int timeout, JsonHandler jhandler) {
-        this(host, port, timeout, timeout, jhandler);
-    }
-
-    /**
-     * A ZabbixClient with all explicit settings
-     * @param host
-     * @param port
-     * @param connectTimeout
-     * @param socketTimeout
-     * @param jhandler
-     */
-    public ZabbixSender(String host, int port, int connectTimeout, int socketTimeout, JsonHandler jhandler) {
-        this.host = host;
-        this.port = port;
-        this.connectTimeout = connectTimeout;
-        this.socketTimeout = socketTimeout;
-        this.jhandler = jhandler;
+    private ZabbixSender(Builder builder) {
+        host = builder.host;
+        port = builder.port;
+        connectTimeout = builder.connectTimeout;
+        socketTimeout = builder.socketTimeout;
+        jhandler = builder.jhandler;
+        factory = builder.factory;
     }
 
     public SenderResult send(DataObject... dataObjectList) throws IOException {
@@ -86,10 +108,10 @@ public class ZabbixSender {
      * @throws IOException
      */
     public SenderResult send(Instant clock, DataObject... dataObjectList) throws IOException {
-        try (SocketChannel socket = SocketChannel.open();
+        try (Socket socket = factory.createSocket();
              ZabbixProtocol dialog = new ZabbixProtocol(socket)) {
-            socket.socket().setSoTimeout(socketTimeout);
-            socket.socket().connect(new InetSocketAddress(host, port), connectTimeout);
+            socket.setSoTimeout((int)socketTimeout);
+            socket.connect(new InetSocketAddress(host, port), (int)connectTimeout);
 
             SenderRequest.SenderRequestBuilder builder = SenderRequest.builder();
             Arrays.stream(dataObjectList).forEach(builder::data);
