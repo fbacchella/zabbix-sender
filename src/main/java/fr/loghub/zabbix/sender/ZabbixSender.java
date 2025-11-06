@@ -15,6 +15,8 @@ import java.util.regex.Pattern;
 
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
 
 import fr.loghub.zabbix.ZabbixProtocol;
 import lombok.Data;
@@ -44,6 +46,8 @@ public class ZabbixSender {
         private JsonHandler jhandler;
         @Setter
         private SocketFactory factory = SocketFactory.getDefault();
+        @Setter
+        private SSLParameters sslParameters = null;
 
         public Builder connectTimeout(long value, TimeUnit unit) {
             connectTimeout = TimeUnit.MILLISECONDS.convert(value, unit);
@@ -86,6 +90,8 @@ public class ZabbixSender {
     private final JsonHandler jhandler;
     @Getter
     private final SocketFactory factory;
+    @Getter
+    private final SSLParameters sslParameters;
 
     private ZabbixSender(Builder builder) {
         host = builder.host;
@@ -94,6 +100,7 @@ public class ZabbixSender {
         socketTimeout = builder.socketTimeout;
         jhandler = builder.jhandler;
         factory = builder.factory;
+        sslParameters = builder.sslParameters;
     }
 
     public SenderResult send(DataObject... dataObjectList) throws IOException {
@@ -111,8 +118,10 @@ public class ZabbixSender {
         try (Socket socket = factory.createSocket();
              ZabbixProtocol dialog = new ZabbixProtocol(socket)) {
             socket.setSoTimeout((int)socketTimeout);
+            if (socket instanceof SSLSocket && sslParameters != null) {
+                ((SSLSocket)socket).setSSLParameters(sslParameters);
+            }
             socket.connect(new InetSocketAddress(host, port), (int)connectTimeout);
-
             SenderRequest.SenderRequestBuilder builder = SenderRequest.builder();
             Arrays.stream(dataObjectList).forEach(builder::data);
             SenderRequest senderRequest = builder.clock(clock).build();
