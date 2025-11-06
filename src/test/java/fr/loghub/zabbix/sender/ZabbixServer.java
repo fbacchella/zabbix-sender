@@ -20,7 +20,7 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
     private final String datapath;
     private final CountDownLatch started = new CountDownLatch(0);
     private final Consumer<byte[]> queryProcessor;
-    private final CompletableFuture<Boolean> doneProcessing = new CompletableFuture();
+    private final CompletableFuture<Boolean> doneProcessing = new CompletableFuture<>();
 
     public ZabbixServer(String datapath, Consumer<byte[]> queryProcessor) {
         this.datapath = datapath;

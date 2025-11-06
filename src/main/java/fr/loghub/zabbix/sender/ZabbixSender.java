@@ -119,6 +119,7 @@ public class ZabbixSender {
 
             dialog.send(jhandler.serialize(senderRequest.getJsonObject()).getBytes(StandardCharsets.UTF_8));
             byte[] responseBuffer = dialog.read();
+            @SuppressWarnings("unchecked")
             Map<String, Object> responseObject = jhandler.deserialize(new String(responseBuffer, StandardCharsets.UTF_8), Map.class);
 
             String response = (String) responseObject.get("response");
