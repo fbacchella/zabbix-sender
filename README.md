@@ -7,7 +7,7 @@ https://www.zabbix.com/documentation/6.4/en/manual/concepts/sender
 
 https://www.zabbix.com/documentation/6.4/en/manual/appendix/items/trapper
 
-If you don't have a zabbix server, recommend use docker to setup test environment.
+If you don't have a zabbix server, recommend use docker to set up test environment.
 
 https://hub.docker.com/u/zabbix/
 
@@ -20,7 +20,7 @@ Zabbix Sender do not create host/item, you have to create them by yourself, or t
 
 1. Create/select a host in zabbix server.
 2. Create an item in zabbix server, which name is "testItem", type is "Zabbix trapper".
-4. Send data.
+3. Send data.
 4. If success, you can find data in web browser. Open "Monitoring"/"Latest data", then filter with Item name or Hosts.
 
 ```java
