@@ -72,7 +72,7 @@ public class ZabbixSenderTest {
         Map<?, ?> content = jhandler.deserialize(new String(query, StandardCharsets.UTF_8), Map.class);
         Assert.assertEquals("sender data", content.get("request"));
         @SuppressWarnings("unchecked")
-        Map<?, ?> objectMap = ((List<Map>)content.get("data")).get(0);
+        Map<?, ?> objectMap = ((List<Map<?, ?>>)content.get("data")).get(0);
         Assert.assertEquals(dataObject.getClock().getNano(), objectMap.get("ns"));
         Assert.assertEquals(dataObject.getClock().getEpochSecond(), ((Number)objectMap.get("clock")).longValue());
         Assert.assertEquals("healthcheck[dw,notificationserver]", objectMap.get("key"));
