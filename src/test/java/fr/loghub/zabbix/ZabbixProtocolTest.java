@@ -2,7 +2,6 @@ package fr.loghub.zabbix;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Assert;
