@@ -1,9 +1,11 @@
 package fr.loghub.zabbix.sender;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URL;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import java.util.concurrent.CompletableFuture;
@@ -31,6 +33,10 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
 
     public void run() {
         try (ServerSocketChannel server = ServerSocketChannel.open()){
+            URL dataurl = getClass().getClassLoader().getResource(datapath);
+            if (dataurl == null) {
+                throw new FileNotFoundException(datapath);
+            }
             server.bind(new InetSocketAddress("127.0.0.1", 49156));
             started.countDown();
             while (true) {
@@ -39,7 +45,7 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
                 ) {
                     byte[] queryData = handler.read();
                     queryProcessor.accept(queryData);
-                    try (InputStream datastream = getClass().getClassLoader().getResourceAsStream(datapath)) {
+                    try (InputStream datastream = dataurl.openStream()) {
                         client.getOutputStream().write(datastream.readAllBytes());
                     }
                 }
