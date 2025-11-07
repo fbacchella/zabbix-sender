@@ -103,12 +103,12 @@ public class ZabbixSenderTest {
         SSLParameters params = ctx.getDefaultSSLParameters();
         params.setProtocols(new String[]{"TLSv1.2"});
         try (ZabbixServer secureserver = startServer(new ZabbixServer("response.blob", this::complete, ctx.getServerSocketFactory()))) {
-            ZabbixSender zabbixClient = ZabbixSender.builder()
-                                                .address(secureserver.getAddress())
-                                                .jhandler(jhandler)
-                                                .socketFactory(ctx.getSocketFactory())
-                                                .sslParameters(params)
-                                                .build();
+             ZabbixSender zabbixClient = ZabbixSender.builder()
+                                                     .address(secureserver.getAddress())
+                                                     .jhandler(jhandler)
+                                                     .sslParameters(params)
+                                                     .sslContext(ctx)
+                                                     .build();
             runTest(zabbixClient);
             SSLSocket socket = (SSLSocket) socketProcessor.get();
             Assert.assertEquals("TLSv1.2", socket.getSession().getProtocol());
