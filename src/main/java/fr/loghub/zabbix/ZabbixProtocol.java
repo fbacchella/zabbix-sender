@@ -56,8 +56,8 @@ public class ZabbixProtocol implements Closeable {
             throw new IOException("Connection closed");
         }
 
-        int magicStatus = Arrays.compare(headerBuffer, 0, ZABBIX_MAGIC.length, headerBuffer, 0, ZABBIX_MAGIC.length);
-        if (magicStatus != 0) {
+        boolean magicStatus = Arrays.equals(headerBuffer, 0, ZABBIX_MAGIC.length, ZABBIX_MAGIC, 0, ZABBIX_MAGIC.length);
+        if (! magicStatus) {
             throw new IOException("Not a Zabbix connection");
         }
         if (headerBuffer[4] != 1) {

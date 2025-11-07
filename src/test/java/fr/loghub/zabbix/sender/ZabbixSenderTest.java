@@ -145,7 +145,7 @@ public class ZabbixSenderTest {
         testFailure(bb -> {
             bb.put("ZBXD".getBytes(StandardCharsets.US_ASCII));
             bb.put((byte) 1);
-            bb.putInt( 1);
+            bb.putInt(1);
             bb.putInt(1);
         }, "Not supported Zabbix exchange");
     }
@@ -158,6 +158,16 @@ public class ZabbixSenderTest {
             bb.putInt( 1);
             bb.putInt(0);
         }, "Connection closed");
+    }
+
+    @Test
+    public void testFailure6() throws IOException, InterruptedException {
+        testFailure(bb -> {
+            bb.put("XXXX".getBytes(StandardCharsets.US_ASCII));
+            bb.put((byte) 1);
+            bb.putInt( 1);
+            bb.putInt(0);
+        }, "Not a Zabbix connection");
     }
 
     private void testFailure(Consumer<ByteBuffer> filler, String message) throws IOException, InterruptedException {
