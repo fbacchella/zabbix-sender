@@ -1,7 +1,8 @@
 # zabbix-sender
-java zabbix-sender
 
-First you should know zabbix sender:
+A java implementation of a zabbix-sender
+
+First you should know the generic concept if zabbix sender:
 
 https://www.zabbix.com/documentation/6.4/en/manual/concepts/sender
 
@@ -14,7 +15,7 @@ https://hub.docker.com/u/zabbix/
 Support zabbix server up to 6.4.
 
 
-##Example
+## Example
 
 Zabbix Sender do not create host/item, you have to create them by yourself, or try to use [zabbix-api](https://github.com/hengyunabc/zabbix-api).
 
@@ -35,7 +36,10 @@ Zabbix Sender do not create host/item, you have to create them by yourself, or t
 
     String host = "127.0.0.1";
     int port = 10051;
-    ZabbixSender zabbixClient = new ZabbixSender(host, port, jhandler);
+    ZabbixSender zabbixClient = ZabbixSender.builder()
+                                            .address(new InetSocketAddress(host, port))
+                                            .jhandler(jhandler)
+                                            .build();
 
     DataObject dataObject = DataObject.builder()
                                       .host("172.17.42.1")
@@ -49,7 +53,7 @@ Zabbix Sender do not create host/item, you have to create them by yourself, or t
     if (result.success()) {
         System.out.println("send success.");
     } else {
-        System.err.println("sned fail!");
+        System.err.println("send fail!");
     }
 ```
 
