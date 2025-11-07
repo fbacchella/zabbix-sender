@@ -1,55 +1,75 @@
 package fr.loghub.zabbix.sender;
 
-import java.io.FileNotFoundException;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.ServerSocketChannel;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+
+import javax.net.ServerSocketFactory;
 
 import fr.loghub.zabbix.ZabbixProtocol;
 
-public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHandler {
-
-    private final String datapath;
-    private final CountDownLatch started = new CountDownLatch(0);
-    private final Consumer<byte[]> queryProcessor;
+public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHandler, Closeable {
+    private final CountDownLatch started = new CountDownLatch(1);
+    private final BiConsumer<Socket, byte[]> queryProcessor;
     private final CompletableFuture<Boolean> doneProcessing = new CompletableFuture<>();
+    private final ServerSocketFactory socketFactory;
+    private final AtomicReference<ServerSocket> socketHolder = new AtomicReference<>();
+    private final URL dataurl;
 
-    public ZabbixServer(String datapath, Consumer<byte[]> queryProcessor) {
-        this.datapath = datapath;
-        this.queryProcessor = queryProcessor;
-        setUncaughtExceptionHandler(this);
-        setName("ZabbixServer");
+    public ZabbixServer(String datapath, BiConsumer<Socket, byte[]> queryProcessor) {
+        this(datapath, queryProcessor, ServerSocketFactory.getDefault());
     }
 
+    public ZabbixServer(String datapath, BiConsumer<Socket, byte[]> queryProcessor, ServerSocketFactory socketFactory) {
+        this.queryProcessor = queryProcessor;
+        this.socketFactory = socketFactory;
+        dataurl = getClass().getClassLoader().getResource(datapath);
+        if (dataurl == null) {
+            throw new IllegalArgumentException(datapath);
+        }
+        setUncaughtExceptionHandler(this);
+        setName("ZabbixServer");
+        start();
+    }
+
+    @Override
     public void run() {
-        try (ServerSocketChannel server = ServerSocketChannel.open()){
-            URL dataurl = getClass().getClassLoader().getResource(datapath);
-            if (dataurl == null) {
-                throw new FileNotFoundException(datapath);
-            }
-            server.bind(new InetSocketAddress("127.0.0.1", 49156));
+        try (ServerSocket serverSocket = socketFactory.createServerSocket()){
+            serverSocket.setSoTimeout(100);
+            socketHolder.set(serverSocket);
+            serverSocket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             started.countDown();
-            while (true) {
-                try (Socket client = server.accept().socket();
+            while (! serverSocket.isClosed()) {
+                try (Socket client = serverSocket.accept();
                      ZabbixProtocol handler = new ZabbixProtocol(client)
                 ) {
                     byte[] queryData = handler.read();
-                    queryProcessor.accept(queryData);
+                    queryProcessor.accept(client, queryData);
                     try (InputStream datastream = dataurl.openStream()) {
                         client.getOutputStream().write(datastream.readAllBytes());
                     }
+                } catch (SocketException | SocketTimeoutException ex) {
+                    /* do loop */
                 }
             }
+            doneProcessing.complete(true);
         } catch (ClosedByInterruptException e) {
             doneProcessing.complete(true);
         } catch (IOException e) {
@@ -66,22 +86,33 @@ public class ZabbixServer extends Thread implements Thread.UncaughtExceptionHand
         return doneProcessing.get(timeout, unit);
     }
 
-    public boolean serverAlive() {
-        return ! doneProcessing.isDone();
-    }
-
-    /**
-     * Method invoked when the given thread terminates due to the
-     * given uncaught exception.
-     * <p>Any exception thrown by this method will be ignored by the
-     * Java Virtual Machine.
-     *
-     * @param t the thread
-     * @param e the exception
-     */
     @Override
     public void uncaughtException(Thread t, Throwable e) {
         doneProcessing.completeExceptionally(e);
     }
 
+    @Override
+    public void close() {
+        try {
+            socketHolder.updateAndGet(ss -> {
+                try {
+                    if (ss != null) {
+                        ss.close();
+                    }
+                    return ss;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            interrupt();
+            doneProcessing.get();
+        } catch (InterruptedException | CancellationException | ExecutionException ex) {
+            /* ignore */
+        }
+    }
+
+    public SocketAddress getAddress() throws InterruptedException {
+        started.await();
+        return socketHolder.get().getLocalSocketAddress();
+    }
 }
