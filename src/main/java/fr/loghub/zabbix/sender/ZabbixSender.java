@@ -3,6 +3,7 @@ package fr.loghub.zabbix.sender;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
@@ -36,10 +37,9 @@ public class ZabbixSender {
 
     @Accessors(fluent = true)
     public static class Builder {
-        @Setter
         private String host;
-        @Setter
         private int port;
+        private SocketAddress address;
         private long connectTimeout = 3000;
         private long socketTimeout = 3000;
         @Setter
@@ -71,6 +71,23 @@ public class ZabbixSender {
             this.factory = factory;
             return this;
         }
+        public Builder host(String host) {
+            this.host = host;
+            this.address = null;
+            return this;
+        }
+        public Builder port(int port) {
+            this.port = port;
+            this.address = null;
+            return this;
+        }
+        public Builder address(SocketAddress address) {
+            this.address = address;
+            this.port = -1;
+            this.host = null;
+            return this;
+        }
+
         public ZabbixSender build() {
             return new ZabbixSender(this);
         }
@@ -79,9 +96,7 @@ public class ZabbixSender {
         return new ZabbixSender.Builder();
     }
     @Getter
-    private final String host;
-    @Getter
-    private final int port;
+    private final SocketAddress address;
     @Getter
     private final long connectTimeout;
     @Getter
@@ -94,8 +109,11 @@ public class ZabbixSender {
     private final SSLParameters sslParameters;
 
     private ZabbixSender(Builder builder) {
-        host = builder.host;
-        port = builder.port;
+        if (builder.address != null) {
+            address = builder.address;
+        } else {
+            address = new InetSocketAddress(builder.host, builder.port);
+        }
         connectTimeout = builder.connectTimeout;
         socketTimeout = builder.socketTimeout;
         jhandler = builder.jhandler;
@@ -121,7 +139,7 @@ public class ZabbixSender {
             if (socket instanceof SSLSocket && sslParameters != null) {
                 ((SSLSocket)socket).setSSLParameters(sslParameters);
             }
-            socket.connect(new InetSocketAddress(host, port), (int)connectTimeout);
+            socket.connect(address, (int)connectTimeout);
             SenderRequest.SenderRequestBuilder builder = SenderRequest.builder();
             Arrays.stream(dataObjectList).forEach(builder::data);
             SenderRequest senderRequest = builder.clock(clock).build();
