@@ -33,13 +33,13 @@ public class DataObject {
                 return keyResolver(name, Arrays.stream(elements));
             }
         }
-        public Builder key(String name, List<Object> elements) {
+        public Builder key(String name, List<?> elements) {
             return keyResolver(name, elements.stream());
         }
-        public Builder key(String name, Stream<Object> elements) {
+        public Builder key(String name, Stream<?> elements) {
             return keyResolver(name, elements);
         }
-        private Builder keyResolver(String name, Stream<Object> elements) {
+        private Builder keyResolver(String name, Stream<?> elements) {
             if (name == null || name.isBlank()) {
                 throw new IllegalArgumentException("Invalid key definition");
             } else if (elements == null) {

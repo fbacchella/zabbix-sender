@@ -31,13 +31,31 @@ public class DataObjectTest {
 
     @Test
     public void key2() {
-        DataObject.Builder builder = DataObject.builder().key("healthcheck", List.of("dw", "notificationserver"));
+        List<String> l = List.of("dw", "notificationserver");
+        DataObject.Builder builder = DataObject.builder().key("healthcheck", l);
+        checkKey(builder, "healthcheck[dw,notificationserver]");
+    }
+
+    @Test
+    public void key2bis() {
+        List<?> l = List.of("dw", "notificationserver");
+        DataObject.Builder builder = DataObject.builder().key("healthcheck", l);
         checkKey(builder, "healthcheck[dw,notificationserver]");
     }
 
     @Test
     public void key3() {
-        DataObject.Builder builder = DataObject.builder().key("healthcheck", Stream.of("dw", "notificationserver"));
+        // Polymorphism can be tricky, check it
+        Stream<String> s = Stream.of("dw", "notificationserver");
+        DataObject.Builder builder = DataObject.builder().key("healthcheck", s);
+        checkKey(builder, "healthcheck[dw,notificationserver]");
+    }
+
+    @Test
+    public void key3bis() {
+        // Polymorphism can be tricky, check it
+        Stream<?> s = Stream.of("dw", "notificationserver");
+        DataObject.Builder builder = DataObject.builder().key("healthcheck", s);
         checkKey(builder, "healthcheck[dw,notificationserver]");
     }
 
