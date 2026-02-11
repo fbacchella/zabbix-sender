@@ -4,12 +4,13 @@ jobs:
         docker:
             - image: cimg/openjdk:25.0
         steps:
-            - checkout
+            - checkout:
+                method: full
             - restore_cache:
                 key: zabbixsender-{{ checksum "pom.xml" }}
             - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
             - run:
-                command: "mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help surefire:help -Psonar,versions -s .circleci/settings.xml"
+                command: "mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help surefire:help gpg:help -Psonar,versions -fn -s .circleci/settings.xml"
             - persist_to_workspace:
                 root: /
                 paths:
@@ -28,7 +29,7 @@ jobs:
                     mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
                     mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
             - run:
-                command: mvn -B clean compile -s .circleci/settings.xml
+                command: mvn -B clean verify -DskipTests -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Xmx2048m"
             - persist_to_workspace:
@@ -51,7 +52,7 @@ jobs:
             command: |
               # If no symbolic name, it's a PR, will run sonar
               if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                  SONAR="jacoco:report sonar:sonar -Psonar"
+                  SONAR="jacoco:report sonar:sonar -Psonar -Dsonar.projectKey=$SONARCLOUD_PROJECTKEY"
                   echo "Doing sonar"
               else
                   SONAR=""
