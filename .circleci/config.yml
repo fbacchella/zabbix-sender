@@ -2,7 +2,7 @@ version: 2.1
 jobs:
     checkout:
         docker:
-            - image: cimg/openjdk:25.0
+            - image: cimg/openjdk:26.0
         steps:
             - checkout:
                 method: full
@@ -10,7 +10,10 @@ jobs:
                 key: zabbixsender-{{ checksum "pom.xml" }}
             - run: mkdir -p /home/circleci/.sonar/cache /home/circleci/.m2/repository
             - run:
-                command: "mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help surefire:help gpg:help -Psonar,versions -fn -s .circleci/settings.xml"
+                # A bug in dependency:go-offline, see https://issues.apache.org/jira/browse/MDEP-688
+                command: "mvn -B dependency:resolve dependency:resolve-plugins sonar:help jacoco:help surefire:help gpg:help -Psonar,versions,gpgsign -s .circleci/settings.xml"
+                environment:
+                  MAVEN_OPTS: "-Xmx1024m"
             - persist_to_workspace:
                 root: /
                 paths:
@@ -19,7 +22,7 @@ jobs:
                     - home/circleci/project
     build:
         docker:
-            - image: cimg/openjdk:25.0
+            - image: cimg/openjdk:26.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -37,6 +40,30 @@ jobs:
                 paths:
                     - home/circleci/.m2/repository
                     - home/circleci/project/target
+    testsj26:
+      docker:
+        - image: cimg/openjdk:26.0
+      steps:
+        - attach_workspace:
+            at: /tmp/ws
+        - run:
+            command: |
+              mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
+              mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
+              mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+        - run:
+            command: |
+              mkdir -p /tmp/$CIRCLE_JOB
+              mvn -B verify -Pskip -Pjacoco -Darg.line="-Xmx2048m" -s .circleci/settings.xml
+            environment:
+              MAVEN_OPTS: "-Xmx1024m"
+        - store_test_results:
+            path: target/surefire-reports
+        - persist_to_workspace:
+            root: /
+            paths:
+              - home/circleci/.m2/repository
+              - home/circleci/project/target
     testsj25:
       docker:
         - image: cimg/openjdk:25.0
@@ -50,25 +77,12 @@ jobs:
               mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
         - run:
             command: |
-              # If no symbolic name, it's a PR, will run sonar
-              if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
-                  SONAR="jacoco:report sonar:sonar -Psonar -Dsonar.projectKey=$SONARCLOUD_PROJECTKEY"
-                  echo "Doing sonar"
-              else
-                  SONAR=""
-              fi
               mkdir -p /tmp/$CIRCLE_JOB
-              mvn -B test $SONAR -Pskip -Darg.line="-Xmx2048m" -Djava.io.tmpdir="/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
+              mvn -B verify -Pskip -Darg.line="-Xmx2048m" -s .circleci/settings.xml
             environment:
               MAVEN_OPTS: "-Xmx1024m"
         - store_test_results:
             path: target/surefire-reports
-        - persist_to_workspace:
-            root: /
-            paths:
-              - home/circleci/.m2/repository
-              - home/circleci/.sonar/cache
-              - home/circleci/project
     testsj21:
         docker:
             - image: cimg/openjdk:21.0
@@ -130,9 +144,36 @@ jobs:
             - store_test_results:
                 path: target/surefire-reports
             #don't persist_to_workspace, can't be done in parallel with testsj13
+    sonarpublish:
+      docker:
+        - image: cimg/openjdk:26.0
+      steps:
+        - attach_workspace:
+            at: /tmp/ws
+        - run:
+            command: |
+              mv -n /tmp/ws/home/circleci/.m2 /home/circleci/
+              mv -n /tmp/ws/home/circleci/.sonar /home/circleci/
+              mv -n /tmp/ws/home/circleci/project/* /home/circleci/project/
+              mv -n /tmp/ws/home/circleci/project/.??* /home/circleci/project/
+        - run:
+            command: |
+              # If no symbolic name, it's a PR, will not run sonar
+              if [ -n "$(git symbolic-ref HEAD 2>/dev/null )" ] ; then
+                echo "Doing sonar"
+                mkdir -p /tmp/$CIRCLE_JOB
+                mvn -B sonar:sonar -Psonar,skip -Darg.line="-Xmx2048m -Djava.io.tmpdir=/tmp/$CIRCLE_JOB" -s .circleci/settings.xml
+              fi
+            environment:
+              MAVEN_OPTS: "-Xmx512m"
+        - persist_to_workspace:
+            root: /
+            paths:
+              - home/circleci/.m2/repository
+              - home/circleci/.sonar/cache
     publish:
         docker:
-            - image: cimg/openjdk:25.0
+            - image: cimg/openjdk:26.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -146,7 +187,7 @@ jobs:
                 command: |
                     if [ -n "$SECRING_GPG_ASC_BASE64" ] ; then
                         echo "$SECRING_GPG_ASC_BASE64" | base64 --decode | gpg --batch --no-tty --import --yes
-                        GPGSIGN="-P gpgsign"
+                        GPGSIGN="-P gpgsign -Dgpg.keyname=41438883"
                     fi
                     # If no symbolic name, it's a PR, will not publish results
                     # If not the official github, it's a fork, don't publish either
@@ -156,20 +197,15 @@ jobs:
                         PUBLISH="install"
                     fi
                     echo "publishing jobs: $PUBLISH"
-                    mvn -B $PUBLISH $GPGSIGN -Pskip -Dmaven.test.skip=true -Dmaven.javadoc.skip=false -s .circleci/settings.xml
+                    mvn -B $PUBLISH -Pskip $GPGSIGN -Dmaven.test.skip=true -s .circleci/settings.xml
                 environment:
                     MAVEN_OPTS: "-Xmx2048m"
             - store_artifacts:
-                path: /home/circleci/.m2/repository/org/zeromq/jeromq
+                path: /home/circleci/.m2/repository/fr/loghub/zabbixsender
                 destination: /
-            - persist_to_workspace:
-                root: /
-                paths:
-                    - home/circleci/.m2/repository
-                    - home/circleci/.sonar/cache
     savecache:
         docker:
-            - image: cimg/openjdk:21.0
+            - image: cimg/openjdk:26.0
         steps:
             - attach_workspace:
                 at: /tmp/ws
@@ -195,18 +231,21 @@ workflows:
       - testsj11:
           requires:
               - build
-          context: "Security variables"
       - testsj17:
           requires:
               - build
-          context: "Security variables"
       - testsj21:
             requires:
                 - build
-            context: "Security variables"
       - testsj25:
           requires:
             - build
+      - testsj26:
+          requires:
+            - build
+      - sonarpublish:
+          requires:
+            - testsj26
           context: "Security variables"
       - publish:
           requires:
@@ -214,6 +253,7 @@ workflows:
               - testsj17
               - testsj21
               - testsj25
+              - testsj26
           context: "Security variables"
       - savecache:
           requires:
